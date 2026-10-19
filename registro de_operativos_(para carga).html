@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Registro de Operativos de Tránsito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --brand:#1fa3ec; --brand-dark:#0f7cba; --accent:#fbb912;
+    --text-strong:#111418; --text-muted:#5b6570; --border:#dbe4ea;
+    --bg:#f4f8fb; --surface:#ffffff; --ok:#2faa5a; --bad:#e2483a;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+    box-sizing:border-box;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --text-strong:#eef2f5; --text-muted:#a8b3bd; --border:#2a3540;
+      --bg:#0f1519; --surface:#161d22;
+    }
+  }
+  :root[data-theme="dark"]{
+    --text-strong:#eef2f5; --text-muted:#a8b3bd; --border:#2a3540;
+    --bg:#0f1519; --surface:#161d22;
+  }
+  html{scroll-padding-top:env(safe-area-inset-top,0px)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Open Sans',sans-serif;background:var(--bg);color:var(--text-strong);}
+  header{background:var(--brand);color:#fff;padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top,0px));position:sticky;top:0;z-index:5;box-shadow:0 2px 12px rgba(20,63,94,.25)}
+  header h1{margin:0;font-size:17px;font-weight:800;letter-spacing:.3px}
+  header p{margin:2px 0 0;font-size:12.5px;opacity:.9}
+  .wrap{max-width:1200px;margin:0 auto;padding:20px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 2px 10px rgba(20,63,94,.06)}
+  .card h2{font-size:14px;margin:0 0 14px;color:var(--brand-dark)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text-strong)}
+  input:focus,select:focus{outline:2px solid var(--brand);outline-offset:1px}
+  input[readonly]{background:var(--bg);color:var(--text-muted)}
+  .full{grid-column:1/-1}
+  .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  button{border:none;border-radius:999px;padding:10px 18px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:filter .15s}
+  button:hover{filter:brightness(.94)}
+  button:active{transform:scale(.97)}
+  .btn-primary{background:var(--brand);color:#fff;box-shadow:0 3px 10px rgba(31,163,236,.35)}
+  .btn-secondary{background:var(--bg);color:var(--text-strong);border:1px solid var(--border)}
+  .btn-danger{background:#fdeceb;color:var(--bad)}
+  .table-scroll{overflow-x:auto;border:1px solid var(--border);border-radius:12px}
+  table{border-collapse:collapse;width:100%;min-width:1100px;font-size:12.5px}
+  th,td{padding:8px 9px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+  th{background:var(--bg);color:var(--text-muted);font-weight:700;position:sticky;top:0}
+  tr:hover td{background:rgba(31,163,236,.05)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+  .si{background:#e6f7ec;color:var(--ok)}
+  .no{background:#fdeceb;color:var(--bad)}
+  .empty{padding:30px;text-align:center;color:var(--text-muted);font-size:13px}
+  .count{font-size:12.5px;color:var(--text-muted);margin-bottom:10px}
+  .del{background:none;border:none;color:var(--bad);cursor:pointer;font-size:15px;padding:2px 6px}
+  small.hint{display:block;color:var(--text-muted);font-size:11px;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>REGISTRO DE OPERATIVOS DE TRÁNSITO</h1>
+  <p>Cargá cada fila de la planilla en papel acá. Los datos quedan guardados en este navegador.</p>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <h2>Conexión con Google Sheets</h2>
+    <div class="grid">
+      <div class="full">
+        <label>URL de la aplicación web (Apps Script)</label>
+        <input type="text" id="sheetUrl" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+      </div>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn-primary" id="guardarUrl">Guardar conexión</button>
+      <span id="estadoConexion" style="font-size:12.5px;color:var(--text-muted);align-self:center"></span>
+    </div>
+    <small class="hint">Pegá acá la URL que te da Google al implementar la aplicación web (paso 4 del instructivo). Se guarda en este navegador; no hace falta repetirlo cada vez.</small>
+  </div>
+
+  <div class="card">
+    <h2>Nuevo registro</h2>
+    <form id="form">
+      <div class="grid">
+        <div><label>Fecha</label><input type="date" id="fecha" required></div>
+        <div><label>Hora</label><input type="time" id="hora" required></div>
+        <div><label>Día de la semana</label><input type="text" id="dia" readonly placeholder="se completa solo"></div>
+        <div><label>Turno</label>
+          <select id="turno"><option value="">—</option><option>Mañana</option><option>Tarde</option><option>Noche</option><option>Madrugada</option></select>
+        </div>
+        <div><label>¿Se realizó operativo?</label>
+          <select id="realizado"><option value="">—</option><option>Sí</option><option>No</option></select>
+        </div>
+        <div><label>Tipo de operativo</label>
+          <input list="tipos" id="tipo" placeholder="Recorrido, control vehicular...">
+          <datalist id="tipos"><option>Recorrido</option><option>Operativo</option><option>Control vehicular</option><option>Ruidos molestos</option></datalist>
+        </div>
+        <div class="full"><label>Dónde (esquinas / perímetro)</label><input type="text" id="donde" placeholder="Ej: Sarmiento y Mitre"></div>
+        <div><label># Agentes</label><input type="number" min="0" id="agentes"></div>
+        <div><label># Actas</label><input type="number" min="0" id="actas"></div>
+        <div><label># Secuestros</label><input type="text" id="secuestros" placeholder="0 o -"></div>
+        <div><label>Responsable en terreno</label><input type="text" id="responsable"></div>
+        <div><label>¿Se solicitó presencia policial?</label>
+          <select id="solicito"><option value="">—</option><option>Sí</option><option>No</option></select>
+        </div>
+        <div><label>¿Hubo presencia policial?</label>
+          <select id="hubo"><option value="">—</option><option>Sí</option><option>No</option></select>
+        </div>
+        <div class="full"><label>Observaciones</label><input type="text" id="obs"></div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn-primary">+ Agregar a la tabla</button>
+        <button type="button" class="btn-secondary" id="limpiarForm">Limpiar campos</button>
+      </div>
+      <small class="hint">El día de la semana se calcula solo a partir de la fecha.</small>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Registros cargados</h2>
+    <div class="count" id="count">0 registros</div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Hora</th><th>Día</th><th>Turno</th><th>¿Operativo?</th><th>Tipo</th><th>Dónde</th>
+          <th>#Agentes</th><th>#Actas</th><th>#Secuestros</th><th>Responsable</th><th>Observaciones</th>
+          <th>¿Solicitó policía?</th><th>¿Hubo policía?</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button class="btn-secondary" id="copiarBtn">📋 Copiar tabla (pegar en Excel/Sheets)</button>
+      <button class="btn-primary" id="excelBtn">⬇ Descargar Excel (.xlsx)</button>
+      <button class="btn-danger" id="vaciarBtn">Vaciar todo</button>
+    </div>
+    <small class="hint">"Copiar tabla" te copia las filas en el mismo orden de columnas que tu planilla, para pegarlas al final de la que ya tenés cargada, sin tocar lo anterior.</small>
+  </div>
+</div>
+
+<script>
+const COLS = ["fecha","hora","dia","turno","realizado","tipo","donde","agentes","actas","secuestros","responsable","obs","solicito","hubo"];
+const HEADERS = ["Fecha","Hora","Día de la semana","Turno","¿Se realizó operativo?","Tipo de operativo","Donde","# agentes","# actas","# secuestros","Responsable en terreno","Observaciones","¿Se solicitó presencia policial?","¿Hubo presencia policial?"];
+const KEY = "esquina_operativos_transito_v1";
+const DIAS = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+
+let rows = [];
+try{ const raw = localStorage.getItem(KEY); rows = raw ? JSON.parse(raw) : []; }catch(e){ rows = []; }
+
+const URL_KEY = "esquina_operativos_sheet_url";
+try{
+  const savedUrl = localStorage.getItem(URL_KEY);
+  if(savedUrl){ document.getElementById('sheetUrl').value = savedUrl; document.getElementById('estadoConexion').textContent = "✓ conectado"; }
+}catch(e){}
+
+document.getElementById('guardarUrl').addEventListener('click', ()=>{
+  const v = document.getElementById('sheetUrl').value.trim();
+  try{ localStorage.setItem(URL_KEY, v); }catch(e){}
+  document.getElementById('estadoConexion').textContent = v ? "✓ conectado" : "";
+  if(v) alert("Conexión guardada. A partir de ahora cada registro que agregues también se manda a tu Google Sheet.");
+});
+
+function enviarAGoogleSheets(entry){
+  let url; try{ url = localStorage.getItem(URL_KEY); }catch(e){ url = null; }
+  if(!url) return;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(entry)
+  }).catch(()=>{ /* no se pudo enviar; el dato sigue guardado localmente */ });
+}
+
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(rows)); }catch(e){} }
+
+function pill(v){
+  if(v==="Sí") return '<span class="pill si">Sí</span>';
+  if(v==="No") return '<span class="pill no">No</span>';
+  return v||"—";
+}
+
+function render(){
+  const tbody = document.getElementById('tbody');
+  document.getElementById('count').textContent = rows.length + " registro" + (rows.length===1?"":"s");
+  if(rows.length===0){ tbody.innerHTML = '<tr><td colspan="15" class="empty">Todavía no cargaste ningún registro</td></tr>'; return; }
+  tbody.innerHTML = rows.map((r,i)=>`<tr>
+    <td>${r.fecha||""}</td><td>${r.hora||""}</td><td>${r.dia||""}</td><td>${r.turno||""}</td>
+    <td>${pill(r.realizado)}</td><td>${r.tipo||""}</td><td>${r.donde||""}</td>
+    <td>${r.agentes||""}</td><td>${r.actas||""}</td><td>${r.secuestros||""}</td>
+    <td>${r.responsable||""}</td><td>${r.obs||""}</td>
+    <td>${pill(r.solicito)}</td><td>${pill(r.hubo)}</td>
+    <td><button class="del" data-i="${i}" title="Eliminar">✕</button></td>
+  </tr>`).join("");
+  tbody.querySelectorAll('.del').forEach(b=>b.addEventListener('click', e=>{
+    rows.splice(parseInt(e.target.dataset.i),1); save(); render();
+  }));
+}
+
+document.getElementById('fecha').addEventListener('change', e=>{
+  const v = e.target.value;
+  document.getElementById('dia').value = v ? DIAS[new Date(v+"T00:00:00").getDay()] : "";
+});
+
+document.getElementById('form').addEventListener('submit', e=>{
+  e.preventDefault();
+  const g = id => document.getElementById(id).value.trim();
+  const entry = {fecha:g('fecha'),hora:g('hora'),dia:g('dia'),turno:g('turno'),realizado:g('realizado'),
+    tipo:g('tipo'),donde:g('donde'),agentes:g('agentes'),actas:g('actas'),secuestros:g('secuestros'),
+    responsable:g('responsable'),obs:g('obs'),solicito:g('solicito'),hubo:g('hubo')};
+  rows.push(entry); save(); render();
+  enviarAGoogleSheets(entry);
+  e.target.reset(); document.getElementById('dia').value="";
+});
+
+document.getElementById('limpiarForm').addEventListener('click', ()=>{
+  document.getElementById('form').reset(); document.getElementById('dia').value="";
+});
+
+document.getElementById('vaciarBtn').addEventListener('click', ()=>{
+  if(confirm("¿Vaciar todos los registros cargados en este navegador? Esto no afecta tu planilla ya guardada.")){
+    rows = []; save(); render();
+  }
+});
+
+document.getElementById('copiarBtn').addEventListener('click', async ()=>{
+  const lines = rows.map(r => COLS.map(c=>r[c]||"").join("\t"));
+  const text = lines.join("\n");
+  try{
+    await navigator.clipboard.writeText(text);
+    alert("Tabla copiada. Pegala al final de tu planilla (Ctrl+V / Cmd+V).");
+  }catch(e){
+    prompt("No se pudo copiar automáticamente. Copiá manualmente:", text);
+  }
+});
+
+document.getElementById('excelBtn').addEventListener('click', ()=>{
+  const data = [HEADERS, ...rows.map(r=>COLS.map(c=>r[c]||""))];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Operativos");
+  XLSX.writeFile(wb, "operativos_transito.xlsx");
+});
+
+render();
+</script>
+</body>
+</html>
